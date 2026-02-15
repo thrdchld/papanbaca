@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Papan Belajar Membaca Anak</title>
+    
+    <!-- MENGGUNAKAN TAILWIND CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MENGGUNAKAN LUCIDE ICONS -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- FONT KHUSUS ANAK -->
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Comic Neue', cursive, sans-serif;
+            touch-action: none; /* Mencegah scroll saat drag */
+            overflow: hidden; 
+            user-select: none; /* Mencegah seleksi teks */
+            -webkit-user-select: none;
+        }
+        
+        .whiteboard-pattern {
+            background-color: #ffffff;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .pop-animation {
+            animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-sky-50 h-screen flex flex-col">
+
+    <!-- HEADER -->
+    <header class="bg-white p-3 shadow-md z-30 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="flex bg-sky-100 p-1 rounded-lg">
+                <span class="text-xl font-bold text-sky-600">A</span>
+                <span class="text-xl font-bold text-orange-500">B</span>
+                <span class="text-xl font-bold text-green-500">C</span>
+            </div>
+            <div class="hidden sm:block leading-tight">
+                <h1 class="font-bold text-gray-700 text-lg">Belajar Baca</h1>
+                <p class="text-xs text-gray-500">Indonesia</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Tombol Mode Suku Kata -->
+            <button id="btnMode" class="flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-600 rounded-full font-bold hover:bg-indigo-200 transition-colors text-sm border-2 border-indigo-200">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                <span id="modeText">Mode: Bebas</span>
+            </button>
+
+            <!-- Tombol Baca Semua -->
+            <button id="btnReadAll" class="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full font-bold shadow-sm hover:bg-green-600 active:scale-95 transition-transform">
+                <i data-lucide="volume-2" class="w-5 h-5"></i>
+                <span class="hidden sm:inline">Baca Semua</span>
+            </button>
+
+            <!-- Tombol Hapus -->
+            <button id="btnClear" class="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-500 rounded-full font-bold hover:bg-red-200 active:scale-95 transition-transform">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- AREA PAPAN TULIS -->
+    <main class="flex-1 p-3 relative overflow-hidden flex flex-col">
+        <div id="boardContainer" class="flex-1 relative bg-white border-4 border-amber-200 rounded-2xl shadow-inner whiteboard-pattern overflow-hidden flex">
+            
+            <!-- LAYER GRID SUKU KATA (Z-Index 0) -->
+            <!-- Layer ini ada di paling bawah. Tombol volumenya harus bisa diklik. -->
+            <div id="syllableGrid" class="absolute inset-0 w-full h-full flex hidden z-0">
+                <!-- Zona 1 -->
+                <div class="flex-1 border-r-2 border-dashed border-sky-300 bg-sky-50/50 flex flex-col items-center pt-2">
+                    <button onclick="readZone(0)" class="cursor-pointer p-2 bg-white rounded-full shadow hover:bg-sky-100 text-sky-600 active:scale-90 border border-sky-200 z-20">
+                        <i data-lucide="volume-1" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <!-- Zona 2 -->
+                <div class="flex-1 border-r-2 border-dashed border-purple-300 bg-purple-50/50 flex flex-col items-center pt-2">
+                    <button onclick="readZone(1)" class="cursor-pointer p-2 bg-white rounded-full shadow hover:bg-purple-100 text-purple-600 active:scale-90 border border-purple-200 z-20">
+                        <i data-lucide="volume-1" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <!-- Zona 3 -->
+                <div class="flex-1 border-r-2 border-dashed border-orange-300 bg-orange-50/50 flex flex-col items-center pt-2">
+                    <button onclick="readZone(2)" class="cursor-pointer p-2 bg-white rounded-full shadow hover:bg-orange-100 text-orange-600 active:scale-90 border border-orange-200 z-20">
+                        <i data-lucide="volume-1" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <!-- Zona 4 -->
+                <div class="flex-1 bg-green-50/50 flex flex-col items-center pt-2">
+                    <button onclick="readZone(3)" class="cursor-pointer p-2 bg-white rounded-full shadow hover:bg-green-100 text-green-600 active:scale-90 border border-green-200 z-20">
+                        <i data-lucide="volume-1" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- LAYER PESAN KOSONG -->
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center opacity-40 pointer-events-none z-0">
+                <i data-lucide="hand" class="w-10 h-10 text-gray-400 mb-2"></i>
+                <p class="text-gray-400 font-bold text-center px-4">Pilih huruf di bawah</p>
+            </div>
+
+            <!-- LAYER AREA HURUF (Z-Index 10) -->
+            <!-- Penting: pointer-events-none agar tembus pandang ke layer grid di bawahnya -->
+            <!-- Huruf di dalamnya nanti akan kita set pointer-events-auto -->
+            <div id="lettersLayer" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></div>
+        </div>
+    </main>
+
+    <!-- KEYBOARD -->
+    <footer class="bg-white p-2 border-t-4 border-sky-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40 shrink-0">
+        <div class="flex flex-wrap gap-2 justify-center max-h-[30vh] overflow-y-auto pb-safe" id="keyboardArea"></div>
+    </footer>
+
+    <script>
+        // --- DATA & STATE ---
+        let letters = [];
+        let isSyllableMode = false;
+        
+        // Drag State
+        let draggedId = null;
+        let dragOffset = { x: 0, y: 0 };
+        let dragStartPos = { x: 0, y: 0 }; // Untuk mendeteksi klik vs geser
+
+        const colors = [
+            'text-red-500 bg-red-100 border-red-200',
+            'text-blue-500 bg-blue-100 border-blue-200',
+            'text-green-500 bg-green-100 border-green-200',
+            'text-purple-500 bg-purple-100 border-purple-200',
+            'text-orange-500 bg-orange-100 border-orange-200'
+        ];
+
+        // --- DOM REFERENCES ---
+        const boardEl = document.getElementById('boardContainer');
+        const lettersLayer = document.getElementById('lettersLayer');
+        const keyboardArea = document.getElementById('keyboardArea');
+        const emptyState = document.getElementById('emptyState');
+        const syllableGrid = document.getElementById('syllableGrid');
+        const btnMode = document.getElementById('btnMode');
+        const modeText = document.getElementById('modeText');
+
+        // --- INIT ---
+        function init() {
+            renderKeyboard();
+            lucide.createIcons();
+            setupButtons();
+            
+            // Pancingan Audio API
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+        }
+
+        // --- RENDER ---
+        function renderKeyboard() {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            keyboardArea.innerHTML = "";
+            alphabet.split('').forEach((char, index) => {
+                const btn = document.createElement('button');
+                const styleClass = colors[index % colors.length];
+                btn.className = `w-10 h-12 sm:w-12 sm:h-14 rounded-lg shadow-sm border-b-4 active:border-b-0 active:translate-y-1 text-2xl font-bold transition-transform hover:scale-105 ${styleClass}`;
+                btn.innerText = char;
+                btn.onclick = () => addLetter(char);
+                keyboardArea.appendChild(btn);
+            });
+        }
+
+        function renderLetters() {
+            lettersLayer.innerHTML = "";
+            emptyState.style.display = letters.length === 0 ? 'flex' : 'none';
+
+            letters.forEach(letter => {
+                const el = document.createElement('div');
+                // Tambahkan 'pointer-events-auto' agar huruf bisa diklik meskipun containernya none
+                el.className = `absolute flex items-center justify-center font-black rounded-lg shadow-md cursor-grab active:cursor-grabbing select-none touch-none border-2 pointer-events-auto ${letter.styleClass}`;
+                el.style.width = '60px';
+                el.style.height = '80px';
+                el.style.fontSize = '3.5rem';
+                el.style.left = `${letter.x}px`;
+                el.style.top = `${letter.y}px`;
+                el.style.transform = `rotate(${letter.rotation}deg)`;
+                el.style.zIndex = letter.id === draggedId ? 50 : 10;
+                el.id = `letter-${letter.id}`;
+                el.innerText = letter.char;
+
+                // Event Listeners Custom untuk Drag & Click
+                el.addEventListener('mousedown', (e) => startDrag(e, letter.id));
+                el.addEventListener('touchstart', (e) => startDrag(e, letter.id), {passive: false});
+
+                // Tombol Hapus Kecil
+                const closeBtn = document.createElement('div');
+                closeBtn.className = "absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm cursor-pointer hover:bg-red-600 z-50 text-xs font-bold";
+                closeBtn.innerHTML = "×";
+                // Mencegah drag saat klik tombol hapus
+                closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+                closeBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeLetter(letter.id);
+                };
+                
+                el.appendChild(closeBtn);
+                lettersLayer.appendChild(el);
+            });
+        }
+
+        // --- LOGIC ---
+        function addLetter(char) {
+            const rect = boardEl.getBoundingClientRect();
+            // Default posisi agak random
+            const randX = 20 + Math.random() * (rect.width - 100);
+            const randY = 20 + Math.random() * (rect.height - 100);
+            
+            const newLetter = {
+                id: Date.now(),
+                char: char,
+                x: randX,
+                y: randY,
+                styleClass: colors[Math.floor(Math.random() * colors.length)],
+                rotation: (Math.random() * 10) - 5
+            };
+            letters.push(newLetter);
+            speak(char.toLowerCase());
+            renderLetters();
+        }
+
+        function removeLetter(id) {
+            letters = letters.filter(l => l.id !== id);
+            renderLetters();
+        }
+
+        function clearBoard() {
+            letters = [];
+            speak("Bersih");
+            renderLetters();
+        }
+
+        function toggleMode() {
+            isSyllableMode = !isSyllableMode;
+            
+            if (isSyllableMode) {
+                // Masuk ke Mode Suku Kata
+                syllableGrid.classList.remove('hidden');
+                modeText.innerText = "Mode: Suku Kata";
+                btnMode.className = "flex items-center gap-2 px-3 py-2 bg-indigo-500 text-white rounded-full font-bold shadow-md hover:bg-indigo-600 transition-colors text-sm";
+                speak("Mode suku kata");
+            } else {
+                // Kembali ke Mode Bebas
+                syllableGrid.classList.add('hidden');
+                modeText.innerText = "Mode: Bebas";
+                btnMode.className = "flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-600 rounded-full font-bold hover:bg-indigo-200 transition-colors text-sm border-2 border-indigo-200";
+                speak("Mode bebas");
+            }
+        }
+
+        // --- DRAG & DROP SYSTEM (with Click Detection) ---
+        function startDrag(e, id) {
+            e.preventDefault(); // Penting untuk touch
+            draggedId = id;
+            
+            const letter = letters.find(l => l.id === id);
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const rect = boardEl.getBoundingClientRect();
+            dragOffset.x = clientX - rect.left - letter.x;
+            dragOffset.y = clientY - rect.top - letter.y;
+            
+            // Simpan posisi awal untuk deteksi "Apakah ini klik atau geser?"
+            dragStartPos.x = clientX;
+            dragStartPos.y = clientY;
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('touchmove', onDrag, {passive: false});
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+            
+            renderLetters(); // Update Z-Index
+        }
+
+        function onDrag(e) {
+            if (!draggedId) return;
+            e.preventDefault();
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const rect = boardEl.getBoundingClientRect();
+
+            let newX = clientX - rect.left - dragOffset.x;
+            let newY = clientY - rect.top - dragOffset.y;
+
+            // Boundary Check
+            const maxX = rect.width - 60;
+            const maxY = rect.height - 80;
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
+
+            // Update DOM langsung agar smooth
+            const el = document.getElementById(`letter-${draggedId}`);
+            if (el) {
+                el.style.left = `${newX}px`;
+                el.style.top = `${newY}px`;
+            }
+            
+            // Update data state (tapi tidak render ulang semua)
+            const letter = letters.find(l => l.id === draggedId);
+            letter.x = newX;
+            letter.y = newY;
+        }
+
+        function endDrag(e) {
+            // Logika Deteksi Klik: Jika gerakannya sangat sedikit, anggap sebagai KLIK
+            if (draggedId) {
+                const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+                
+                const dist = Math.hypot(clientX - dragStartPos.x, clientY - dragStartPos.y);
+                
+                // Jika geser kurang dari 5 pixel, itu adalah KLIK
+                if (dist < 5) {
+                    const letter = letters.find(l => l.id === draggedId);
+                    const el = document.getElementById(`letter-${draggedId}`);
+                    // Efek visual klik
+                    el.classList.add('pop-animation');
+                    setTimeout(() => el.classList.remove('pop-animation'), 200);
+                    // Suara
+                    speak(letter.char.toLowerCase());
+                }
+            }
+
+            draggedId = null;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('touchmove', onDrag);
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchend', endDrag);
+            renderLetters(); // Reset Z-index
+        }
+
+        // --- AUDIO SYSTEM ---
+        function speak(text) {
+            if (!'speechSynthesis' in window) return;
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.9; 
+            
+            const voices = window.speechSynthesis.getVoices();
+            const indoVoice = voices.find(v => v.lang.includes('id-ID') || v.lang.includes('ind'));
+            if (indoVoice) utterance.voice = indoVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function readAll() {
+            if (letters.length === 0) { speak("Kosong"); return; }
+            const sorted = [...letters].sort((a, b) => a.x - b.x);
+            const word = sorted.map(l => l.char).join('');
+            speak(word);
+        }
+
+        function readZone(zoneIndex) {
+            if (letters.length === 0) { speak("Kosong"); return; }
+
+            const rect = boardEl.getBoundingClientRect();
+            const zoneWidth = rect.width / 4;
+
+            // Cari huruf yang titik tengahnya ada di dalam zona ini
+            const zoneLetters = letters.filter(l => {
+                const centerX = l.x + 30; 
+                const minX = zoneIndex * zoneWidth;
+                const maxX = (zoneIndex + 1) * zoneWidth;
+                return centerX >= minX && centerX < maxX;
+            });
+
+            if (zoneLetters.length === 0) {
+                speak("Kosong");
+            } else {
+                const sorted = zoneLetters.sort((a, b) => a.x - b.x);
+                const text = sorted.map(l => l.char).join('');
+                speak(text);
+            }
+        }
+
+        function setupButtons() {
+            document.getElementById('btnClear').onclick = clearBoard;
+            document.getElementById('btnReadAll').onclick = readAll;
+            document.getElementById('btnMode').onclick = toggleMode;
+        }
+
+        init();
+    </script>
+</body>
+</html>
