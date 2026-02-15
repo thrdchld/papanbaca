@@ -10,34 +10,58 @@
     
     <!-- MENGGUNAKAN LUCIDE ICONS -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // lucide fallback: simple replacer when library isn't available (offline)
+        (function(){
+            function createFallbackIcons(){
+                document.querySelectorAll('i[data-lucide]').forEach(el=>{
+                    if (el.getAttribute('data-lucide-replaced')) return;
+                    const name = el.getAttribute('data-lucide');
+                    const span = document.createElement('span');
+                    // basic mapping for volume/hand/trash/layout
+                    const map = { 'volume-1':'🔊','volume-2':'🔈','trash-2':'🗑️','hand':'👉','layout-grid':'🔲' };
+                    span.textContent = map[name] || '🔹';
+                    span.style.display='inline-block';
+                    el.parentNode.replaceChild(span, el);
+                });
+            }
+            window.addEventListener('DOMContentLoaded', createFallbackIcons);
+            window.lucide = window.lucide || { createIcons: createFallbackIcons };
+        })();
+    </script>
     
     <!-- FONT KHUSUS ANAK -->
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f0f9ff">
 
     <style>
-        body {
-            font-family: 'Comic Neue', cursive, sans-serif;
-            touch-action: none; /* Mencegah scroll saat drag */
-            overflow: hidden; 
-            user-select: none; /* Mencegah seleksi teks */
-            -webkit-user-select: none;
-        }
-        
-        .whiteboard-pattern {
-            background-color: #ffffff;
-            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 24px 24px;
-        }
-
-        .pop-animation {
-            animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
+        /* Minimal fallback styles to make app usable offline (without Tailwind) */
+        :root{--sky-50:#eef9ff;--indigo-100:#eef2ff;--green-500:#10b981;--red-100:#fee2e2}
+        *{box-sizing:border-box}
+        body{margin:0;font-family:'Comic Neue', cursive, sans-serif;background:var(--sky-50);height:100vh;display:flex;flex-direction:column;touch-action:none;overflow:hidden;user-select:none;-webkit-user-select:none}
+        header{background:#fff;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center}
+        main{flex:1;padding:12px;display:flex;flex-direction:column}
+        #boardContainer{flex:1;position:relative;background:#fff;border:8px solid #fde68a;border-radius:20px;overflow:hidden}
+        footer{background:#fff;padding:8px;border-top:4px solid #e0f2fe}
+        #keyboardArea{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:30vh;overflow:auto}
+        button{cursor:pointer}
+        .rounded-full{border-radius:9999px}
+        .hidden{display:none}
+        .absolute{position:absolute}
+        .inset-0{top:0;right:0;bottom:0;left:0}
+        .pointer-events-none{pointer-events:none}
+        .pointer-events-auto{pointer-events:auto}
+        .font-bold{font-weight:700}
+        .text-xs{font-size:0.75rem}
+        .text-lg{font-size:1.125rem}
+        .shadow-md{box-shadow:0 4px 8px rgba(0,0,0,0.08)}
+        /* whiteboard pattern */
+        .whiteboard-pattern{background-color:#ffffff;background-image:radial-gradient(#cbd5e1 1px, transparent 1px);background-size:24px 24px}
+        .pop-animation{animation:pop 0.2s cubic-bezier(0.175,0.885,0.32,1.275)}
+        @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
+        /* letter tile */
+        .letter-tile{position:absolute;display:flex;align-items:center;justify-content:center;font-weight:900;border:2px solid #ddd;border-radius:10px;width:60px;height:80px;font-size:3rem;background:#fff}
     </style>
 </head>
 <body class="bg-sky-50 h-screen flex flex-col">
@@ -353,18 +377,27 @@
 
         // --- AUDIO SYSTEM ---
         function speak(text) {
-            if (!'speechSynthesis' in window) return;
-            window.speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'id-ID';
-            utterance.rate = 0.9; 
-            
-            const voices = window.speechSynthesis.getVoices();
-            const indoVoice = voices.find(v => v.lang.includes('id-ID') || v.lang.includes('ind'));
-            if (indoVoice) utterance.voice = indoVoice;
+            // Prefer Web Speech API when available (Electron & many browsers)
+            if ('speechSynthesis' in window) {
+                try{
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'id-ID';
+                    utterance.rate = 0.9;
+                    const voices = window.speechSynthesis.getVoices();
+                    const indoVoice = voices.find(v => v.lang.includes('id-ID') || v.lang.includes('ind'));
+                    if (indoVoice) utterance.voice = indoVoice;
+                    window.speechSynthesis.speak(utterance);
+                    return;
+                }catch(e){/* fall through to audio fallback */}
+            }
 
-            window.speechSynthesis.speak(utterance);
+            // Fallback: try local audio file `assets/sounds/<text>.mp3` (for full offline)
+            try{
+                const clean = String(text).toLowerCase().replace(/[^a-z0-9_\-]/g, '_');
+                const audio = new Audio(`assets/sounds/${clean}.mp3`);
+                audio.play().catch(()=>{});
+            }catch(e){/* no-op */}
         }
 
         function readAll() {
