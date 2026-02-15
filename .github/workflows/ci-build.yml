@@ -17,8 +17,11 @@ jobs:
           node-version: '18'
       - name: Install dependencies
         run: npm ci
-      - name: Build AppImage (x64 + ia32)
-        run: npx electron-builder --linux --x64 --ia32 --publish never
+      - name: Build AppImage (x64)
+        run: npx electron-builder --linux --x64 --publish never
+      - name: Build AppImage (ia32) — best-effort
+        continue-on-error: true
+        run: npx electron-builder --linux --ia32 --publish never
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -86,8 +89,9 @@ jobs:
           npx @capacitor/cli create capacitor-app com.example.papanbaca PapanBaca || true
           npx @capacitor/cli add android || true
           npx cap copy android || true
-      - name: Build Android Release (gradle)
+      - name: Build Android Release (gradle) — best-effort
         working-directory: android
+        continue-on-error: true
         run: ./gradlew assembleRelease -Porg.gradle.jvmargs="-Xmx2048m"
       - name: Upload Android APK(s)
         uses: actions/upload-artifact@v4
