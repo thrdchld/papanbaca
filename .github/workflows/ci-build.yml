@@ -1,0 +1,117 @@
+name: CI Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Build Linux (x64 + ia32)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build AppImage (x64 + ia32)
+        run: npx electron-builder --linux --x64 --ia32 --publish never
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.tar.gz
+
+  build-windows:
+    name: Build Windows (x64 + ia32)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Windows installers
+        run: npx electron-builder --win --x64 --ia32 --publish never
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.zip
+
+  build-android:
+    name: Build Android (Capacitor) - experimental
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install Android SDK (tools & platforms)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip lib32stdc++6 lib32z1
+          mkdir -p $ANDROID_HOME
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $ANDROID_HOME
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv $ANDROID_HOME/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+      - name: Install node deps
+        run: npm ci
+      - name: Add Capacitor & scaffold Android (if missing)
+        run: |
+          npx @capacitor/cli create capacitor-app com.example.papanbaca PapanBaca || true
+          npx @capacitor/cli add android || true
+          npx cap copy android || true
+      - name: Build Android Release (gradle)
+        working-directory: android
+        run: ./gradlew assembleRelease -Porg.gradle.jvmargs="-Xmx2048m"
+      - name: Upload Android APK(s)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android/app/build/outputs/apk/release/*.apk
+
+  create-release:
+    name: Create GitHub Release and attach artifacts
+    needs: [build-linux, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release_artifacts
+          asset_name: release_artifacts.tar.gz
+          asset_content_type: application/gzip
