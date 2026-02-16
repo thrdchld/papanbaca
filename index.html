@@ -1145,6 +1145,7 @@
         }
 
         function speak(text) {
+            text = text.toLowerCase();
             // Strategy 1: Native speechSynthesis with Indonesian voice
             if ('speechSynthesis' in window && cachedIdVoice) {
                 try {
