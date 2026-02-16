@@ -1,20 +1,41 @@
 {
   "name": "papanbaca",
-  "version": "0.1.0",
-  "description": "Papan Belajar Membaca Anak — web + desktop + PWA",
+  "version": "0.2.0",
+  "description": "PapanBaca — Belajar Membaca Anak (Portable)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "dist": "electron-builder --linux --win"
+    "dist": "electron-builder --win --publish never"
   },
   "build": {
     "appId": "id.thrdchld.papanbaca",
     "productName": "PapanBaca",
-    "files": ["**/*"],
-    "directories": {"buildResources": "build"},
-    "win": {"target": [{"target": "nsis", "arch": ["ia32", "x64"]}]},
-    "linux": {"target": [{"target": "AppImage", "arch": ["ia32", "x64"]}]}
+    "files": [
+      "index.html",
+      "main.js",
+      "manifest.json",
+      "service-worker.js",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "PapanBaca-${version}-Portable.${ext}"
+    }
   },
   "devDependencies": {
     "electron": "^25.0.0",

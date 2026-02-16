@@ -1,5 +1,8 @@
 node_modules/
 dist/
-build/
 out/
 .DS_Store
+
+# Keep build resources (icon) but ignore generated output
+build/*
+!build/icon.svg

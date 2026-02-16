@@ -1,41 +1,60 @@
-**PapanBaca — build & run**
+# PapanBaca — Belajar Membaca Anak
 
-- **Run locally (dev):**
+Aplikasi desktop untuk anak-anak belajar membaca huruf dan suku kata Bahasa Indonesia.
 
-```
+## ✨ Fitur
+
+- **Papan huruf interaktif** — drag & drop huruf untuk menyusun kata
+- **Text-to-Speech** — baca huruf dan kata dengan suara Bahasa Indonesia
+- **Mode Suku Kata** — 4 zona untuk latihan suku kata
+- **Keyboard berwarna** — vokal (kuning) dan konsonan (biru) dibedakan
+- **Confetti celebration** — efek perayaan saat membaca kata
+- **Portable** — satu file `.exe`, tanpa instalasi
+
+## 🚀 Cara Pakai
+
+### Download
+
+Download file `.exe` dari [Releases](../../releases). Langsung jalankan, tidak perlu install.
+
+### Development (lokal)
+
+```bash
 npm install
 npx electron .
 ```
 
-- **Build desktop installers (Windows/Linux, 32 & 64-bit):**
+### Build Portable EXE
 
-```
+```bash
 npm install
-npx electron-builder --linux --win
+npx electron-builder --win --x64 --publish never
 ```
 
-This uses `electron-builder` targets: Windows NSIS (ia32, x64) and Linux AppImage (ia32, x64).
+Hasil build ada di folder `dist/`.
 
-- **Android / Mobile options:**
+## 🔧 CI/CD
 
-- Option A — Install as PWA: open the app in a browser (or serve via simple HTTP) and install to Android homescreen. The app includes `manifest.json` and `service-worker.js` for offline install.
+Build otomatis via GitHub Actions:
 
-- Option B — Native wrapper: use Capacitor to wrap the `www`/project folder:
+1. **Push tag** `v*` (contoh: `v0.2.0`) → otomatis build dan buat Release
+2. **Manual trigger** → workflow_dispatch di tab Actions
+
+## 📁 Struktur
 
 ```
-npx cap init
-npx cap add android
-npx cap copy
-npx cap open android
+├── index.html          # Aplikasi utama (HTML + CSS + JS)
+├── main.js             # Electron main process
+├── package.json        # Config & dependencies
+├── build/
+│   └── icon.svg        # App icon (dikonversi ke PNG saat build)
+├── assets/
+│   ├── icon-192.svg    # PWA icon
+│   ├── icon-512.svg    # PWA icon
+│   ├── fonts/          # (opsional) font offline
+│   └── sounds/         # (opsional) audio offline
+├── manifest.json       # PWA manifest
+├── service-worker.js   # PWA service worker
+└── .github/workflows/
+    └── windows-only.yml  # GitHub Actions build
 ```
-
-Requirements: Node.js, npm, Java JDK, Android SDK (for building native Android apk).
-
-Offline notes — making the app fully standalone:
-
-- Place local font files in `assets/fonts/` as `ComicNeue-Regular.woff2` and `ComicNeue-Bold.woff2` so the app doesn't rely on Google Fonts.
-- Add per-letter and phrase audio files to `assets/sounds/` named `a.mp3`, `b.mp3`, ..., `bersih.mp3`, `kosong.mp3`. The app will automatically fallback to these files when `speechSynthesis` isn't available.
-- Optional: replace PWA icons in `manifest.json` with your own images (placed in `assets/`).
-- The service worker caches app files for offline use; after first load (online) the PWA can be installed and run offline. Electron builds are fully local.
-
-If you want, I can add example audio files and bundle the Comic Neue font into the repo — tell me and I'll add them.

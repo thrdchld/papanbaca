@@ -1,4 +1,4 @@
-name: Windows Build Only
+name: Build Windows Portable
 
 on:
   push:
@@ -6,24 +6,73 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-windows:
-    name: Build Windows (x64 + ia32)
+  build:
+    name: Build Portable EXE (x64)
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Convert SVG icon to PNG
+        run: |
+          npm install --no-save sharp
+          node -e "
+            const sharp = require('sharp');
+            const fs = require('fs');
+            const svg = fs.readFileSync('build/icon.svg');
+            sharp(svg).resize(256, 256).png().toFile('build/icon.png')
+              .then(() => console.log('Icon converted: build/icon.png'))
+              .catch(e => { console.error(e); process.exit(1); });
+          "
+
       - name: Install dependencies
         run: npm ci
-      - name: Build Windows installers
-        run: npx electron-builder --win --x64 --ia32 --publish never
-      - name: Upload Windows artifacts
+
+      - name: Build portable exe
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: List build output
+        run: Get-ChildItem -Path dist -Recurse | Select-Object Name, Length
+        shell: pwsh
+
+      - name: Upload portable exe
         uses: actions/upload-artifact@v4
         with:
-          name: windows-artifacts
-          path: |
-            dist/*.exe
-            dist/*.msi
-            dist/*.zip
+          name: PapanBaca-Portable
+          path: dist/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download portable exe
+        uses: actions/download-artifact@v4
+        with:
+          name: PapanBaca-Portable
+          path: release
+
+      - name: List release files
+        run: ls -lh release/
+
+      - name: Create Release & upload
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
