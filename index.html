@@ -937,25 +937,68 @@
         }
 
         // --- SPEECH ---
+        let cachedIdVoice = null;
+        let voicesLoaded = false;
+
+        // Load and cache Indonesian voice
+        function loadIdVoice() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) return;
+            voicesLoaded = true;
+            // Priority: exact id-ID > id_ > contains 'indonesi' > ms-MY (Malay, similar)
+            cachedIdVoice =
+                voices.find(v => v.lang === 'id-ID') ||
+                voices.find(v => v.lang.startsWith('id')) ||
+                voices.find(v => v.name.toLowerCase().includes('indonesi')) ||
+                voices.find(v => v.lang === 'ms-MY') ||
+                null;
+            if (cachedIdVoice) console.log('TTS voice:', cachedIdVoice.name, cachedIdVoice.lang);
+        }
+
+        // Init voices (async on some browsers)
+        if ('speechSynthesis' in window) {
+            loadIdVoice();
+            window.speechSynthesis.onvoiceschanged = loadIdVoice;
+        }
+
         function speak(text) {
-            if ('speechSynthesis' in window) {
+            // Strategy 1: Native speechSynthesis with Indonesian voice
+            if ('speechSynthesis' in window && cachedIdVoice) {
                 try {
                     window.speechSynthesis.cancel();
                     const u = new SpeechSynthesisUtterance(text);
+                    u.voice = cachedIdVoice;
                     u.lang = 'id-ID';
                     u.rate = 0.9;
-                    const voices = window.speechSynthesis.getVoices();
-                    const idVoice = voices.find(v => v.lang.includes('id'));
-                    if (idVoice) u.voice = idVoice;
                     window.speechSynthesis.speak(u);
                     return;
-                } catch (_) { /* fallback */ }
+                } catch (_) { /* fall through */ }
             }
-            // Offline audio fallback
+
+            // Strategy 2: Google Translate TTS (always Indonesian)
+            try {
+                const encoded = encodeURIComponent(text);
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=id&q=${encoded}`;
+                const audio = new Audio(url);
+                audio.volume = 1.0;
+                audio.play().catch(() => {
+                    // Strategy 3: local audio file fallback
+                    speakOffline(text);
+                });
+                return;
+            } catch (_) { /* fall through */ }
+
+            // Strategy 3: Offline audio fallback
+            speakOffline(text);
+        }
+
+        function speakOffline(text) {
             try {
                 const clean = String(text).toLowerCase().replace(/[^a-z0-9_\-]/g, '_');
                 new Audio(`assets/sounds/${clean}.mp3`).play().catch(() => { });
             } catch (_) { }
+        }
         }
 
         function readAll() {
