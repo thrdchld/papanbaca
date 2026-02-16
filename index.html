@@ -358,6 +358,21 @@
             border: 3px solid;
         }
 
+        .letter-tile.selected {
+            outline: 3px solid #3B82F6;
+            outline-offset: 2px;
+            filter: brightness(1.1);
+        }
+
+        /* ===== SELECTION RECTANGLE ===== */
+        .selection-rect {
+            position: absolute;
+            border: 2px dashed #3B82F6;
+            background: rgba(59, 130, 246, 0.1);
+            pointer-events: none;
+            z-index: 50;
+        }
+
         .letter-tile:active {
             cursor: grabbing
         }
@@ -686,6 +701,13 @@
         let dragOffset = { x: 0, y: 0 };
         let dragStartPos = { x: 0, y: 0 };
 
+        // Multi-select state
+        let selectedIds = new Set();
+        let isSelecting = false;
+        let selectionStart = { x: 0, y: 0 };
+        let selectionRect = null;
+        let multiDragOffsets = {};
+
         // --- DOM ---
         const boardEl = document.getElementById('boardContainer');
         const lettersLayer = document.getElementById('lettersLayer');
@@ -761,6 +783,7 @@
             letters.forEach(letter => {
                 const el = document.createElement('div');
                 el.className = `letter-tile ${letter.colorClass}`;
+                if (selectedIds.has(letter.id)) el.classList.add('selected');
                 el.id = `letter-${letter.id}`;
                 el.textContent = letter.char;
                 el.style.left = `${letter.x}px`;
@@ -783,7 +806,14 @@
                 closeBtn.textContent = '×';
                 closeBtn.addEventListener('mousedown', e => e.stopPropagation());
                 closeBtn.addEventListener('touchstart', e => e.stopPropagation());
-                closeBtn.onclick = e => { e.stopPropagation(); removeLetter(letter.id); };
+                closeBtn.onclick = e => {
+                    e.stopPropagation();
+                    if (selectedIds.has(letter.id) && selectedIds.size > 1) {
+                        removeSelectedLetters();
+                    } else {
+                        removeLetter(letter.id);
+                    }
+                };
 
                 el.appendChild(closeBtn);
                 lettersLayer.appendChild(el);
@@ -814,6 +844,7 @@
 
         function removeLetter(id) {
             const el = document.getElementById(`letter-${id}`);
+            selectedIds.delete(id);
             if (el) {
                 el.style.transition = 'transform 0.2s, opacity 0.2s';
                 el.style.transform = 'scale(0)';
@@ -828,9 +859,23 @@
             }
         }
 
+        function removeSelectedLetters() {
+            if (selectedIds.size === 0) return;
+            const ids = new Set(selectedIds);
+            document.querySelectorAll('.letter-tile.selected').forEach((el, i) => {
+                el.style.transition = `transform ${0.15 + i * 0.02}s, opacity ${0.15 + i * 0.02}s`;
+                el.style.transform = 'scale(0)';
+                el.style.opacity = '0';
+            });
+            setTimeout(() => {
+                letters = letters.filter(l => !ids.has(l.id));
+                selectedIds.clear();
+                renderLetters();
+            }, 250);
+        }
+
         function clearBoard() {
             if (letters.length === 0) return;
-            // Animate all letters shrinking
             document.querySelectorAll('.letter-tile').forEach((el, i) => {
                 el.style.transition = `transform ${0.15 + i * 0.03}s, opacity ${0.15 + i * 0.03}s`;
                 el.style.transform = 'scale(0) rotate(20deg)';
@@ -838,7 +883,8 @@
             });
             setTimeout(() => {
                 letters = [];
-                speak('Bersih');
+                selectedIds.clear();
+                speak('Papan dibersihkan');
                 renderLetters();
             }, 300);
         }
@@ -859,11 +905,28 @@
             }
         }
 
-        // --- DRAG & DROP ---
+        // --- DRAG & DROP (with multi-select support) ---
         function startDrag(e, id) {
             e.preventDefault();
-            draggedId = id;
+            e.stopPropagation();
 
+            const isCtrl = e.ctrlKey || e.metaKey;
+
+            // Ctrl+click: toggle selection
+            if (isCtrl) {
+                if (selectedIds.has(id)) {
+                    selectedIds.delete(id);
+                } else {
+                    selectedIds.add(id);
+                }
+                renderLetters();
+                return;
+            }
+
+            // If dragging a selected tile, drag all selected
+            const isDraggingSelected = selectedIds.has(id) && selectedIds.size > 1;
+
+            draggedId = id;
             const letter = letters.find(l => l.id === id);
             const cx = e.touches ? e.touches[0].clientX : e.clientX;
             const cy = e.touches ? e.touches[0].clientY : e.clientY;
@@ -873,6 +936,22 @@
             dragOffset.y = cy - rect.top - letter.y;
             dragStartPos.x = cx;
             dragStartPos.y = cy;
+
+            // Store offsets for all selected tiles (for multi-drag)
+            if (isDraggingSelected) {
+                multiDragOffsets = {};
+                selectedIds.forEach(sid => {
+                    const sl = letters.find(l => l.id === sid);
+                    if (sl) {
+                        multiDragOffsets[sid] = {
+                            dx: sl.x - letter.x,
+                            dy: sl.y - letter.y
+                        };
+                    }
+                });
+            } else {
+                multiDragOffsets = {};
+            }
 
             const el = document.getElementById(`letter-${id}`);
             if (el) el.classList.add('dragging');
@@ -897,18 +976,32 @@
             let nx = cx - rect.left - dragOffset.x;
             let ny = cy - rect.top - dragOffset.y;
 
-            // Clamp to board
             nx = Math.max(0, Math.min(nx, rect.width - tileW));
             ny = Math.max(0, Math.min(ny, rect.height - tileH));
 
-            const el = document.getElementById(`letter-${draggedId}`);
-            if (el) {
-                el.style.left = `${nx}px`;
-                el.style.top = `${ny}px`;
+            // Multi-drag: move all selected tiles
+            if (Object.keys(multiDragOffsets).length > 0) {
+                for (const [sid, off] of Object.entries(multiDragOffsets)) {
+                    const sl = letters.find(l => l.id === Number(sid) || l.id === sid);
+                    if (sl) {
+                        sl.x = Math.max(0, Math.min(nx + off.dx, rect.width - tileW));
+                        sl.y = Math.max(0, Math.min(ny + off.dy, rect.height - tileH));
+                        const sel = document.getElementById(`letter-${sl.id}`);
+                        if (sel) {
+                            sel.style.left = `${sl.x}px`;
+                            sel.style.top = `${sl.y}px`;
+                        }
+                    }
+                }
+            } else {
+                const el = document.getElementById(`letter-${draggedId}`);
+                if (el) {
+                    el.style.left = `${nx}px`;
+                    el.style.top = `${ny}px`;
+                }
+                const letter = letters.find(l => l.id === draggedId);
+                if (letter) { letter.x = nx; letter.y = ny; }
             }
-
-            const letter = letters.find(l => l.id === draggedId);
-            if (letter) { letter.x = nx; letter.y = ny; }
         }
 
         function endDrag(e) {
@@ -921,20 +1014,109 @@
                 if (el) el.classList.remove('dragging');
 
                 // Click detection (moved < 5px = tap)
-                if (dist < 5) {
+                if (dist < 5 && Object.keys(multiDragOffsets).length === 0) {
+                    // If not ctrl and clicking without multi-drag, clear selection first
+                    if (!e.ctrlKey && !e.metaKey) {
+                        selectedIds.clear();
+                    }
                     const letter = letters.find(l => l.id === draggedId);
                     if (el) el.classList.add('pop-anim');
                     setTimeout(() => { if (el) el.classList.remove('pop-anim'); }, 200);
                     if (letter) speak(letter.char.toLowerCase());
+                    renderLetters();
                 }
             }
 
             draggedId = null;
+            multiDragOffsets = {};
             document.removeEventListener('mousemove', onDrag);
             document.removeEventListener('touchmove', onDrag);
             document.removeEventListener('mouseup', endDrag);
             document.removeEventListener('touchend', endDrag);
         }
+
+        // --- SELECTION RECTANGLE (drag on empty board area) ---
+        boardEl.addEventListener('mousedown', function (e) {
+            // Only start selection if clicking on the board background (not on a tile)
+            if (e.target !== boardEl && e.target !== lettersLayer && e.target !== emptyState
+                && !e.target.classList.contains('empty-emoji') && !e.target.classList.contains('empty-text')
+                && e.target !== syllableGrid && !e.target.closest('.zone')) return;
+
+            e.preventDefault();
+            const rect = boardEl.getBoundingClientRect();
+            selectionStart.x = e.clientX - rect.left;
+            selectionStart.y = e.clientY - rect.top;
+            isSelecting = true;
+
+            // Create selection rectangle
+            selectionRect = document.createElement('div');
+            selectionRect.className = 'selection-rect';
+            selectionRect.style.left = `${selectionStart.x}px`;
+            selectionRect.style.top = `${selectionStart.y}px`;
+            selectionRect.style.width = '0px';
+            selectionRect.style.height = '0px';
+            boardEl.appendChild(selectionRect);
+
+            if (!e.ctrlKey && !e.metaKey) {
+                selectedIds.clear();
+                renderLetters();
+            }
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isSelecting || !selectionRect) return;
+            const rect = boardEl.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+
+            const x = Math.min(selectionStart.x, cx);
+            const y = Math.min(selectionStart.y, cy);
+            const w = Math.abs(cx - selectionStart.x);
+            const h = Math.abs(cy - selectionStart.y);
+
+            selectionRect.style.left = `${x}px`;
+            selectionRect.style.top = `${y}px`;
+            selectionRect.style.width = `${w}px`;
+            selectionRect.style.height = `${h}px`;
+
+            // Live-highlight tiles within the selection rect
+            const tileW = (window.innerWidth <= 640) ? 50 : TILE_W;
+            const tileH = (window.innerWidth <= 640) ? 64 : TILE_H;
+            const newSelection = new Set(e.ctrlKey || e.metaKey ? selectedIds : []);
+            letters.forEach(l => {
+                const tileCx = l.x + tileW / 2;
+                const tileCy = l.y + tileH / 2;
+                if (tileCx >= x && tileCx <= x + w && tileCy >= y && tileCy <= y + h) {
+                    newSelection.add(l.id);
+                }
+            });
+            selectedIds = newSelection;
+            renderLetters();
+        });
+
+        document.addEventListener('mouseup', function (e) {
+            if (!isSelecting) return;
+            isSelecting = false;
+            if (selectionRect) {
+                selectionRect.remove();
+                selectionRect = null;
+            }
+        });
+
+        // Delete key to remove selected
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (selectedIds.size > 0 && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    removeSelectedLetters();
+                }
+            }
+            // Escape to deselect
+            if (e.key === 'Escape') {
+                selectedIds.clear();
+                renderLetters();
+            }
+        });
 
         // --- SPEECH ---
         let cachedIdVoice = null;
@@ -1000,12 +1182,58 @@
             } catch (_) { }
         }
 
+        // Speak with delay (returns a promise)
+        function speakWithDelay(text, delayMs) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    speak(text);
+                    resolve();
+                }, delayMs);
+            });
+        }
+
         function readAll() {
             if (letters.length === 0) { speak('Kosong'); return; }
-            const sorted = [...letters].sort((a, b) => a.x - b.x);
-            const word = sorted.map(l => l.char).join('');
-            speak(word);
-            celebrate();
+
+            if (isSyllableMode) {
+                // Read each zone, then full word
+                const rect = boardEl.getBoundingClientRect();
+                const zw = rect.width / 4;
+                const tileW = (window.innerWidth <= 640) ? 50 : TILE_W;
+                const zones = [];
+                const fullParts = [];
+
+                for (let zi = 0; zi < 4; zi++) {
+                    const zoneLtrs = letters.filter(l => {
+                        const cx = l.x + tileW / 2;
+                        return cx >= zi * zw && cx < (zi + 1) * zw;
+                    }).sort((a, b) => a.x - b.x);
+                    if (zoneLtrs.length > 0) {
+                        const zoneText = zoneLtrs.map(l => l.char).join('');
+                        zones.push(zoneText);
+                        fullParts.push(zoneText);
+                    }
+                }
+
+                if (zones.length === 0) { speak('Kosong'); return; }
+
+                // Read zone by zone, then full word
+                let delay = 0;
+                zones.forEach((z, i) => {
+                    speakWithDelay(z, delay);
+                    delay += 800 + z.length * 200;
+                });
+
+                // Then read the full combined word
+                const fullWord = fullParts.join('');
+                speakWithDelay(fullWord, delay + 400);
+                setTimeout(() => celebrate(), delay + 400);
+            } else {
+                const sorted = [...letters].sort((a, b) => a.x - b.x);
+                const word = sorted.map(l => l.char).join('');
+                speak(word);
+                celebrate();
+            }
         }
 
         function readZone(zi) {
