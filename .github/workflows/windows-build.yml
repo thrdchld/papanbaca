@@ -23,11 +23,15 @@ jobs:
         shell: pwsh
 
       - name: Download MODEL from Hugging Face (optional)
-        if: ${{ secrets.MODEL_ID != '' && secrets.HF_TOKEN != '' }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           MODEL_ID: ${{ secrets.MODEL_ID }}
         run: |
+          if (-not $env:MODEL_ID -or -not $env:HF_TOKEN) {
+            Write-Host "MODEL_ID or HF_TOKEN not set; skipping model download"
+            exit 0
+          }
+
           python - << 'PY'
           from huggingface_hub import HfApi
           import os
