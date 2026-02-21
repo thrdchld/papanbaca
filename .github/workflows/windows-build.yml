@@ -1,0 +1,88 @@
+name: Build Windows standalone TTS
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        shell: pwsh
+
+      - name: Download MODEL from Hugging Face (optional)
+        if: ${{ secrets.MODEL_ID != '' && secrets.HF_TOKEN != '' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          MODEL_ID: ${{ secrets.MODEL_ID }}
+        run: |
+          python - << 'PY'
+          from huggingface_hub import HfApi
+          import os
+          api = HfApi()
+          model_id = os.environ.get('MODEL_ID')
+          outdir = os.path.join(os.getcwd(), 'models', model_id.replace('/','_'))
+          print('Downloading model', model_id, '->', outdir)
+          os.makedirs(outdir, exist_ok=True)
+          api.login(token=os.environ.get('HF_TOKEN'))
+          # download full repo files
+          api.repo_download(repo_id=model_id, repo_type='model', local_dir=outdir)
+          print('Model downloaded')
+          PY
+        shell: pwsh
+
+      - name: Build EXE with PyInstaller
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          MODEL_ID: ${{ secrets.MODEL_ID }}
+        run: |
+          # include web and models folders (if present) in the bundle
+          ADD_DATA="web;web"
+          if [ -d models ]; then ADD_DATA="$ADD_DATA;models;models"; fi
+          pyinstaller --onefile --add-data "%ADD_DATA%" app.py --name papanbaca
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: papanbaca-windows
+          path: dist/papanbaca.exe
+
+      - name: Compress EXE for release
+        run: |
+          if (!(Test-Path -Path dist\papanbaca.exe)) { Write-Error 'Built EXE not found'; exit 1 }
+          Compress-Archive -Path dist\papanbaca.exe -DestinationPath dist\papanbaca-windows.zip -Force
+        shell: pwsh
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: papanbaca-windows-${{ github.run_number }}
+          body: Automated Windows build by workflow
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/papanbaca-windows.zip
+          asset_name: papanbaca-windows.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

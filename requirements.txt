@@ -1,0 +1,8 @@
+pywebview==3.6
+TTS>=0.13.0
+huggingface_hub
+simpleaudio
+pyinstaller
+numpy
+scipy
+soundfile

@@ -1,0 +1,6 @@
+TTS>=0.13.0
+numpy
+scipy
+soundfile
+pyinstaller
+huggingface_hub

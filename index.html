@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Papan Pintar Belajar Membaca</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: none; 
+            overflow: hidden; 
+            user-select: none; 
+            -webkit-user-select: none;
+            background-color: #f0f9ff;
+        }
+
+        .magnet-letter {
+            width: 64px;
+            height: 80px;
+            font-size: 3.5rem;
+            line-height: 1;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 15px 20px rgba(0,0,0,0.1);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .magnet-dragging {
+            transform: scale(1.1) rotate(0deg) !important;
+            box-shadow: 0 15px 0 rgba(0,0,0,0.1), 0 25px 30px rgba(0,0,0,0.2) !important;
+            z-index: 100 !important;
+        }
+
+        .pop-animation {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2) rotate(-5deg); }
+            100% { transform: scale(1); }
+        }
+
+        .zone-reading {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            border-color: #38bdf8 !important;
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .speaker-playing {
+            animation: pulse-speaker 0.8s infinite alternate;
+            background-color: #bae6fd !important;
+            color: #0284c7 !important;
+        }
+
+        @keyframes pulse-speaker {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+            100% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="bg-white p-3 shadow-md z-30 flex justify-between items-center shrink-0 border-b-4 border-sky-200">
+        <div class="flex items-center gap-2">
+            <div class="flex space-x-1 bg-amber-100 p-2 rounded-xl border-b-4 border-amber-200">
+                <span class="text-2xl font-black text-amber-500 leading-none">A</span>
+                <span class="text-2xl font-black text-sky-500 leading-none">B</span>
+                <span class="text-2xl font-black text-green-500 leading-none">C</span>
+            </div>
+            <h1 class="font-bold text-gray-700 text-xl tracking-wide ml-2 hidden sm:block">Ayo Membaca</h1>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="readGlobalWord()" class="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white rounded-2xl font-bold shadow-[0_5px_0_rgb(22,163,74)] hover:bg-green-400 active:translate-y-1 active:shadow-none transition-all cursor-pointer text-lg">
+                <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                <span class="hidden sm:inline">Baca Kata</span>
+            </button>
+
+            <button onclick="clearBoard()" class="flex items-center gap-2 p-2.5 bg-red-100 text-red-500 rounded-2xl font-bold hover:bg-red-200 active:scale-90 transition-all cursor-pointer border-2 border-red-200" title="Bersihkan Papan">
+                <i data-lucide="trash-2" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 p-2 md:p-4 relative overflow-hidden flex flex-col bg-sky-50">
+        <div id="boardContainer" class="flex-1 relative bg-white border-4 border-slate-300 rounded-[2rem] shadow-inner overflow-hidden flex">
+            
+            <div class="absolute inset-0 w-full h-full flex z-0 p-1.5 gap-1.5 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
+                
+                <div id="zone-0" class="flex-1 bg-white/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center pt-3 transition-all duration-300">
+                    <button id="speaker-0" onclick="readZone(0)" class="p-3 bg-white rounded-full shadow-md text-slate-400 hover:text-sky-500 hover:scale-110 active:scale-95 transition-all border-2 border-slate-100 z-20 cursor-pointer">
+                        <i data-lucide="volume-2" class="w-7 h-7"></i>
+                    </button>
+                    <span class="text-slate-300 font-bold text-sm mt-2 select-none">1</span>
+                </div>
+                <div id="zone-1" class="flex-1 bg-white/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center pt-3 transition-all duration-300">
+                    <button id="speaker-1" onclick="readZone(1)" class="p-3 bg-white rounded-full shadow-md text-slate-400 hover:text-sky-500 hover:scale-110 active:scale-95 transition-all border-2 border-slate-100 z-20 cursor-pointer">
+                        <i data-lucide="volume-2" class="w-7 h-7"></i>
+                    </button>
+                    <span class="text-slate-300 font-bold text-sm mt-2 select-none">2</span>
+                </div>
+                <div id="zone-2" class="flex-1 bg-white/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center pt-3 transition-all duration-300">
+                    <button id="speaker-2" onclick="readZone(2)" class="p-3 bg-white rounded-full shadow-md text-slate-400 hover:text-sky-500 hover:scale-110 active:scale-95 transition-all border-2 border-slate-100 z-20 cursor-pointer">
+                        <i data-lucide="volume-2" class="w-7 h-7"></i>
+                    </button>
+                    <span class="text-slate-300 font-bold text-sm mt-2 select-none">3</span>
+                </div>
+                <div id="zone-3" class="flex-1 bg-white/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center pt-3 transition-all duration-300">
+                    <button id="speaker-3" onclick="readZone(3)" class="p-3 bg-white rounded-full shadow-md text-slate-400 hover:text-sky-500 hover:scale-110 active:scale-95 transition-all border-2 border-slate-100 z-20 cursor-pointer">
+                        <i data-lucide="volume-2" class="w-7 h-7"></i>
+                    </button>
+                    <span class="text-slate-300 font-bold text-sm mt-2 select-none">4</span>
+                </div>
+
+            </div>
+
+            <div id="lettersLayer" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></div>
+        </div>
+    </main>
+
+    <footer class="bg-white p-3 border-t-4 border-sky-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] z-40 shrink-0">
+        <div class="flex flex-wrap gap-2 md:gap-3 justify-center max-h-[35vh] overflow-y-auto pb-safe" id="keyboardArea">
+        </div>
+    </footer>
+
+    <script>
+        let letters = []; 
+        let draggedId = null; 
+        let dragOffset = { x: 0, y: 0 };
+        let dragStartPos = { x: 0, y: 0 };
+        let indoVoice = null;
+        let spawnCounter = 0; 
+
+        const boardEl = document.getElementById('boardContainer');
+        const lettersLayer = document.getElementById('lettersLayer');
+        const keyboardArea = document.getElementById('keyboardArea');
+
+        function init() {
+            renderKeyboard();
+            lucide.createIcons();
+            
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+                loadVoices();
+            }
+        }
+
+        function loadVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            indoVoice = voices.find(v => {
+                const lang = v.lang.replace('_', '-').toLowerCase();
+                return lang === 'id-id' || lang === 'in-id' || v.name.toLowerCase().includes('indonesia');
+            });
+        }
+
+        // --- TRIK ANTI-INGGRIS (ULTIMATE HACK) ---
+        function forceIndonesianPhonetics(text) {
+            let t = text.toLowerCase();
+            
+            // 1. Ganti semua huruf 'e' menjadi 'é'. 
+            // Ini memaksa TTS browser membacanya seperti "E" pada kata "Bebek" atau "Ember".
+            // Kata "GAME" jadi "gamé" (dibaca ga-me). Kata "ME" jadi "mé" (dibaca me).
+            t = t.replace(/e/g, 'é');
+
+            // 2. Cegah kata 2 huruf yang sering disalahartikan menjadi Inggris
+            const englishTraps = {
+                "do": "doh", 
+                "to": "toh", 
+                "so": "soh",
+                "no": "noh",
+                "go": "goh",
+                "hi": "hih",
+                "by": "bai",
+                "my": "mai"
+            };
+
+            // Jika yang diketik pas dengan jebakan inggris, kita ganti
+            if (englishTraps[t]) {
+                return englishTraps[t];
+            }
+
+            return t;
+        }
+
+        function speak(text, callback = null) {
+            if (!'speechSynthesis' in window) return;
+            window.speechSynthesis.cancel(); 
+            
+            // Terapkan trik hack sebelum dibacakan
+            const safeText = forceIndonesianPhonetics(text);
+            
+            const utterance = new SpeechSynthesisUtterance(safeText);
+            utterance.lang = 'id-ID'; 
+            
+            if (indoVoice) {
+                utterance.voice = indoVoice;
+            }
+
+            utterance.rate = 0.8; 
+            
+            if (callback) {
+                utterance.onend = callback;
+                utterance.onerror = callback;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function renderKeyboard() {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const vowels = "AIUEO";
+            keyboardArea.innerHTML = "";
+            
+            alphabet.split('').forEach(char => {
+                const isVowel = vowels.includes(char);
+                const btn = document.createElement('button');
+                
+                const baseClass = isVowel 
+                    ? "bg-amber-400 text-amber-900 border-amber-500 shadow-[0_4px_0_rgb(217,119,6)] hover:bg-amber-300" 
+                    : "bg-sky-400 text-sky-900 border-sky-500 shadow-[0_4px_0_rgb(2,132,199)] hover:bg-sky-300";
+
+                btn.className = `w-11 h-14 sm:w-14 sm:h-16 rounded-xl active:translate-y-1 active:shadow-none text-2xl md:text-3xl font-black transition-all cursor-pointer border-b-4 ${baseClass}`;
+                btn.innerText = char;
+                
+                btn.onclick = () => addLetter(char, isVowel);
+                keyboardArea.appendChild(btn);
+            });
+        }
+
+        function addLetter(char, isVowel) {
+            const rect = boardEl.getBoundingClientRect();
+            
+            spawnCounter = (spawnCounter + 1) % 5;
+            const startX = (rect.width / 2) - 30 + (spawnCounter * 15 - 30);
+            const startY = (rect.height / 2) + 20 + (spawnCounter * 10);
+            
+            const newLetter = {
+                id: Date.now(),
+                char: char,
+                x: startX,
+                y: startY,
+                isVowel: isVowel,
+                rotation: (Math.random() * 8) - 4
+            };
+            
+            letters.push(newLetter);
+            
+            // Saat klik huruf baru 1 biji, ucapkan bunyi hurufnya
+            speak(char); 
+            renderLetters();
+        }
+
+        function removeLetter(id) {
+            letters = letters.filter(l => l.id !== id);
+            renderLetters();
+        }
+
+        function clearBoard() {
+            letters = [];
+            speak("Dihapus");
+            renderLetters();
+        }
+
+        function renderLetters() {
+            lettersLayer.innerHTML = "";
+            
+            letters.forEach(letter => {
+                const el = document.createElement('div');
+                
+                const bgColor = letter.isVowel ? 'bg-amber-100' : 'bg-sky-50';
+                const textColor = letter.isVowel ? 'text-amber-600' : 'text-sky-600';
+                const borderColor = letter.isVowel ? 'border-amber-300' : 'border-sky-300';
+                
+                el.className = `magnet-letter absolute flex items-center justify-center font-black rounded-xl cursor-grab active:cursor-grabbing border-2 pointer-events-auto ${bgColor} ${textColor} ${borderColor}`;
+                el.style.left = `${letter.x}px`;
+                el.style.top = `${letter.y}px`;
+                el.style.transform = `rotate(${letter.rotation}deg)`;
+                el.style.zIndex = 10;
+                el.id = `letter-${letter.id}`;
+                el.innerText = letter.char;
+
+                el.addEventListener('pointerdown', (e) => startDrag(e, letter.id));
+
+                const closeBtn = document.createElement('div');
+                closeBtn.className = "absolute -top-3 -right-3 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center border-4 border-white shadow-md cursor-pointer hover:scale-110 hover:bg-red-600 transition-transform";
+                closeBtn.innerHTML = "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>";
+                
+                closeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+                closeBtn.onclick = (e) => { e.stopPropagation(); removeLetter(letter.id); };
+                
+                el.appendChild(closeBtn);
+                lettersLayer.appendChild(el);
+            });
+        }
+
+        function startDrag(e, id) {
+            draggedId = id;
+            e.target.setPointerCapture(e.pointerId);
+
+            const letter = letters.find(l => l.id === id);
+            const rect = boardEl.getBoundingClientRect();
+            
+            dragOffset.x = e.clientX - rect.left - letter.x;
+            dragOffset.y = e.clientY - rect.top - letter.y;
+            dragStartPos.x = e.clientX;
+            dragStartPos.y = e.clientY;
+
+            const el = document.getElementById(`letter-${id}`);
+            if (el) el.classList.add('magnet-dragging'); 
+
+            document.addEventListener('pointermove', onDrag);
+            document.addEventListener('pointerup', endDrag);
+            document.addEventListener('pointercancel', endDrag);
+        }
+
+        function onDrag(e) {
+            if (!draggedId) return;
+            
+            const rect = boardEl.getBoundingClientRect();
+            let newX = e.clientX - rect.left - dragOffset.x;
+            let newY = e.clientY - rect.top - dragOffset.y;
+            
+            newX = Math.max(0, Math.min(newX, rect.width - 64)); 
+            newY = Math.max(0, Math.min(newY, rect.height - 80)); 
+
+            const el = document.getElementById(`letter-${draggedId}`);
+            if (el) { el.style.left = `${newX}px`; el.style.top = `${newY}px`; }
+            
+            const letter = letters.find(l => l.id === draggedId);
+            if (letter) { letter.x = newX; letter.y = newY; }
+        }
+
+        function endDrag(e) {
+            if (!draggedId) return;
+
+            const el = document.getElementById(`letter-${draggedId}`);
+            if (el) el.classList.remove('magnet-dragging');
+
+            const dist = Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y);
+            if (dist < 5) { 
+                const letter = letters.find(l => l.id === draggedId);
+                if (letter && el) {
+                    el.classList.remove('pop-animation');
+                    void el.offsetWidth; 
+                    el.classList.add('pop-animation');
+                    
+                    speak(letter.char); 
+                }
+            }
+
+            draggedId = null;
+            document.removeEventListener('pointermove', onDrag);
+            document.removeEventListener('pointerup', endDrag);
+            document.removeEventListener('pointercancel', endDrag);
+            
+            renderLetters();
+        }
+
+        function sortLetters(arr) {
+            return arr.sort((a, b) => {
+                if (Math.abs(a.y - b.y) > 40) return a.y - b.y; 
+                return a.x - b.x; 
+            });
+        }
+
+        function getZoneLetters(idx) {
+            const w = boardEl.clientWidth / 4;
+            return letters.filter(l => {
+                const centerX = l.x + 32; 
+                return centerX >= (idx * w) && centerX < ((idx + 1) * w);
+            });
+        }
+
+        function resetZoneVisuals() {
+            for(let i=0; i<4; i++) {
+                document.getElementById(`zone-${i}`).classList.remove('zone-reading');
+                document.getElementById(`speaker-${i}`).classList.remove('speaker-playing');
+            }
+        }
+
+        function setZoneVisual(idx, state) {
+            const zone = document.getElementById(`zone-${idx}`);
+            const speaker = document.getElementById(`speaker-${idx}`);
+            if (state) {
+                zone.classList.add('zone-reading');
+                speaker.classList.add('speaker-playing');
+            } else {
+                zone.classList.remove('zone-reading');
+                speaker.classList.remove('speaker-playing');
+            }
+        }
+
+        function readZone(idx) {
+            const zoneLetters = getZoneLetters(idx);
+            if (zoneLetters.length === 0) return;
+            
+            resetZoneVisuals();
+            setZoneVisual(idx, true); 
+            
+            const text = sortLetters(zoneLetters).map(l => l.char).join('');
+            
+            speak(text, () => {
+                setZoneVisual(idx, false); 
+            });
+        }
+
+        function readGlobalWord() {
+            let partsToSpeak = [];
+            let zonesWithContent = [];
+
+            // Gabungkan teks per zona terlebih dahulu
+            for (let i = 0; i < 4; i++) {
+                const zoneLetters = getZoneLetters(i);
+                if (zoneLetters.length > 0) {
+                    let zoneText = sortLetters(zoneLetters).map(l => l.char).join('');
+                    partsToSpeak.push(zoneText);
+                    zonesWithContent.push(i);
+                }
+            }
+
+            if (partsToSpeak.length > 0) {
+                resetZoneVisuals();
+                zonesWithContent.forEach(idx => setZoneVisual(idx, true));
+                
+                // MENGHANCURKAN DETEKSI INGGRIS:
+                // Teks digabungkan menggunakan "SPASI". 
+                // Misal: Lajur 1 "ME", Lajur 2 "JA", akan jadi "ME JA".
+                // Mesin akan membacanya sebagai suku kata terpisah, mencegahnya dibaca jadi kata Inggris
+                let finalWord = partsToSpeak.join(' ');
+                
+                speak(finalWord, () => {
+                    resetZoneVisuals(); 
+                });
+            } else {
+                speak("Belum ada huruf");
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
