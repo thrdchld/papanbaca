@@ -44,7 +44,7 @@ api.login(token=os.environ.get('HF_TOKEN'))
 # download full repo files
 api.repo_download(repo_id=model_id, repo_type='model', local_dir=outdir)
 print('Model downloaded')
-'@
+          '@
 
           $scriptPath = Join-Path $PWD 'download_model.py'
           $py | Out-File -Encoding utf8 -FilePath $scriptPath
