@@ -7,7 +7,7 @@ and creates a release automatically when pushing to `main`/`master`.
 Required repository secrets (set in Settings → Secrets):
 - `GITHUB_TOKEN` (provided automatically by Actions) — used to create the release and upload assets.
 - `MODEL_ID` (optional but recommended) — the Hugging Face model id to bundle (example: `grandhigh/Chatterbox-TTS-Indonesian`). If left empty the app will try to auto-discover a model at runtime.
-- `HF_TOKEN` (optional) — Hugging Face token needed if the model repo is private or to avoid rate limits for large downloads.
+-- `hf_token` (optional) — Hugging Face token needed if the model repo is private or to avoid rate limits for large downloads. Create the secret with the name `hf_token` in repository Secrets.
 
 What the workflow does
 - Installs Python dependencies from `requirements.txt`.

@@ -15,6 +15,6 @@ Recommended model (first choice)
 
 Notes:
 - Set `MODEL_ID` to a HuggingFace model id that targets Bahasa Indonesia. If you prefer a different model, replace `MODEL_ID` above.
-- If the repository contains large model files, add `HF_TOKEN` as a repository secret so CI can download them and bundle into the Windows EXE.
+-- If the repository contains large model files, add `hf_token` as a repository secret so CI can download them and bundle into the Windows EXE (create secret name `hf_token`).
 - Building a bundled EXE that includes the full model ensures the app works offline immediately after installation.
 
