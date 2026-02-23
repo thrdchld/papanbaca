@@ -23,9 +23,9 @@ jobs:
         shell: pwsh
 
       - name: Download MODEL from Hugging Face (optional)
-          env:
-            HF_TOKEN: ${{ secrets.hf_token }}
-            MODEL_ID: ${{ secrets.MODEL_ID }}
+        env:
+          HF_TOKEN: ${{ secrets.hf_token }}
+          MODEL_ID: ${{ secrets.MODEL_ID }}
         run: |
           if (-not $env:MODEL_ID -or -not $env:HF_TOKEN) {
             Write-Host "MODEL_ID or HF_TOKEN not set; skipping model download"
@@ -52,14 +52,18 @@ print('Model downloaded')
         shell: pwsh
 
       - name: Build EXE with PyInstaller
-          env:
-            HF_TOKEN: ${{ secrets.hf_token }}
-            MODEL_ID: ${{ secrets.MODEL_ID }}
+        env:
+          HF_TOKEN: ${{ secrets.hf_token }}
+          MODEL_ID: ${{ secrets.MODEL_ID }}
         run: |
-          # include web and models folders (if present) in the bundle
-          ADD_DATA="web;web"
-          if [ -d models ]; then ADD_DATA="$ADD_DATA;models;models"; fi
-          pyinstaller --onefile --add-data "%ADD_DATA%" app.py --name papanbaca
+          # include web and models folders (if present) in the bundle (PowerShell)
+          if (Test-Path -Path models) {
+            $ADD_DATA = "web;web;models;models"
+          } else {
+            $ADD_DATA = "web;web"
+          }
+
+          pyinstaller --onefile --add-data "$ADD_DATA" app.py --name papanbaca
         shell: pwsh
 
       - name: Upload artifact
