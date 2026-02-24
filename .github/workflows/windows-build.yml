@@ -1,15 +1,20 @@
-name: Build Windows standalone TTS
+# Build EXE Windows di GitHub Actions saja. Tidak ada install/build di local.
+name: Build Windows EXE
 
 on:
   push:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Gunakan index.html sebagai sumber web (grand design)
+        run: Copy-Item -Path index.html -Destination web/index.html -Force
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -66,35 +71,14 @@ print('Model downloaded')
           pyinstaller --onefile --add-data "$ADD_DATA" app.py --name papanbaca
         shell: pwsh
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: papanbaca-windows
-          path: dist/papanbaca.exe
-
-      - name: Compress EXE for release
+      - name: Compress EXE
         run: |
           if (!(Test-Path -Path dist\papanbaca.exe)) { Write-Error 'Built EXE not found'; exit 1 }
           Compress-Archive -Path dist\papanbaca.exe -DestinationPath dist\papanbaca-windows.zip -Force
         shell: pwsh
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: papanbaca-windows-${{ github.run_number }}
-          body: Automated Windows build by workflow
-          draft: false
-          prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/papanbaca-windows.zip
-          asset_name: papanbaca-windows.zip
-          asset_content_type: application/zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: papanbaca-windows
+          path: dist/papanbaca-windows.zip

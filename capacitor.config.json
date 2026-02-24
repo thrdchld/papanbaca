@@ -1,0 +1,8 @@
+{
+  "appId": "com.papanbaca.app",
+  "appName": "Papan Pintar Belajar Membaca",
+  "webDir": "web",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,14 @@
+# Build hanya di GitHub Actions; jangan commit hasil install/build local
+node_modules/
+android/
+dist/
+build/
+*.pyc
+__pycache__/
+.venv/
+venv/
+*.exe
+*.spec
+models/
+piper/
+package-lock.json

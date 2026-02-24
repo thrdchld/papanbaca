@@ -1,0 +1,16 @@
+{
+  "name": "papanbaca",
+  "version": "1.0.0",
+  "description": "Papan Pintar Belajar Membaca - native Android & Windows",
+  "private": true,
+  "scripts": {
+    "build": "echo 'No JS build step; web/ is static'",
+    "cap:sync": "cap sync",
+    "cap:android": "cap add android && cap sync"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+}
